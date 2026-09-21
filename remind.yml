@@ -1,0 +1,29 @@
+name: Slack Reminder Bot
+
+on:
+  schedule:
+    # Jalan setiap hari jam 09:00 WIB (02:00 UTC)
+    # Ubah angka jam sesuai kebutuhan. Format cron: menit jam * * *
+    - cron: "0 2 * * *"
+  workflow_dispatch: {}   # supaya bisa dijalankan manual dari tab Actions untuk testing
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run reminder bot
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_IDS: ${{ secrets.SLACK_CHANNEL_IDS }}
+        run: python reminder_bot.py
