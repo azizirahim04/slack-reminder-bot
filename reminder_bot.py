@@ -67,7 +67,7 @@ SECONDS_PER_DAY = 86400
 
 # --- Aturan 1: #new + 👀 -> Wilma ---
 NEW_TAG = os.environ.get("NEW_TAG", "#new")
-NEW_EYES_WINDOW_DAYS = int(os.environ.get("NEW_EYES_WINDOW_DAYS", "1"))
+NEW_EYES_WINDOW_DAYS = int(os.environ.get("NEW_EYES_WINDOW_DAYS", "0"))
 NEW_EYES_REPEAT_DAYS = int(os.environ.get("NEW_EYES_REPEAT_DAYS", str(NEW_EYES_WINDOW_DAYS)))
 NEW_EYES_MENTION_USER_ID = os.environ.get("NEW_EYES_MENTION_USER_ID", "")
 NEW_EYES_TEXT = os.environ.get(
