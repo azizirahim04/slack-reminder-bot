@@ -61,14 +61,25 @@ from slack_sdk.errors import SlackApiError
 
 SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
 SLACK_CHANNEL_IDS = os.environ.get("SLACK_CHANNEL_IDS", "")
-MAX_LOOKBACK_DAYS = int(os.environ.get("MAX_LOOKBACK_DAYS", "30"))
+MAX_LOOKBACK_DAYS = int(os.environ.get("MAX_LOOKBACK_DAYS", "30") or "30")
 
 SECONDS_PER_DAY = 86400
 
+
+def get_int_env(name, default):
+    """Ambil env var sebagai integer. String kosong (secret yang tidak
+    diisi tapi tetap terdaftar di remind.yml) dianggap sama seperti tidak
+    diset -> pakai default."""
+    val = os.environ.get(name, "").strip()
+    if not val:
+        return int(default)
+    return int(val)
+
+
 # --- Aturan 1: #new + 👀 -> Wilma ---
 NEW_TAG = os.environ.get("NEW_TAG", "#new")
-NEW_EYES_WINDOW_DAYS = int(os.environ.get("NEW_EYES_WINDOW_DAYS", "0"))
-NEW_EYES_REPEAT_DAYS = int(os.environ.get("NEW_EYES_REPEAT_DAYS", str(NEW_EYES_WINDOW_DAYS)))
+NEW_EYES_WINDOW_DAYS = get_int_env("NEW_EYES_WINDOW_DAYS", 1)
+NEW_EYES_REPEAT_DAYS = get_int_env("NEW_EYES_REPEAT_DAYS", NEW_EYES_WINDOW_DAYS)
 NEW_EYES_MENTION_USER_ID = os.environ.get("NEW_EYES_MENTION_USER_ID", "")
 NEW_EYES_TEXT = os.environ.get(
     "NEW_EYES_TEXT",
@@ -76,8 +87,8 @@ NEW_EYES_TEXT = os.environ.get(
 )
 
 # --- Aturan 2: #new + ✅ -> Helmi ---
-NEW_CHECK_WINDOW_DAYS = int(os.environ.get("NEW_CHECK_WINDOW_DAYS", "0"))
-NEW_CHECK_REPEAT_DAYS = int(os.environ.get("NEW_CHECK_REPEAT_DAYS", str(NEW_CHECK_WINDOW_DAYS)))
+NEW_CHECK_WINDOW_DAYS = get_int_env("NEW_CHECK_WINDOW_DAYS", 7)
+NEW_CHECK_REPEAT_DAYS = get_int_env("NEW_CHECK_REPEAT_DAYS", NEW_CHECK_WINDOW_DAYS)
 NEW_CHECK_MENTION_USER_ID = os.environ.get("NEW_CHECK_MENTION_USER_ID", "")
 NEW_CHECK_TEXT = os.environ.get(
     "NEW_CHECK_TEXT",
@@ -86,8 +97,8 @@ NEW_CHECK_TEXT = os.environ.get(
 
 # --- Aturan 3: #urgent + 👍 -> tim (user group) ---
 URGENT_TAG = os.environ.get("URGENT_TAG", "#urgent")
-URGENT_WINDOW_DAYS = int(os.environ.get("URGENT_WINDOW_DAYS", "0"))
-URGENT_REPEAT_DAYS = int(os.environ.get("URGENT_REPEAT_DAYS", str(URGENT_WINDOW_DAYS)))
+URGENT_WINDOW_DAYS = get_int_env("URGENT_WINDOW_DAYS", 1)
+URGENT_REPEAT_DAYS = get_int_env("URGENT_REPEAT_DAYS", URGENT_WINDOW_DAYS)
 URGENT_MENTION_GROUP_ID = os.environ.get("REMINDER_MENTION_GROUP_ID", "")
 URGENT_TEXT = os.environ.get(
     "URGENT_TEXT",
