@@ -26,6 +26,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_IDS: ${{ secrets.SLACK_CHANNEL_IDS }}
-          REMINDER_MENTION_USER_ID: ${{ secrets.REMINDER_MENTION_USER_ID }}
+          NEW_EYES_MENTION_USER_ID: ${{ secrets.NEW_EYES_MENTION_USER_ID }}
+          NEW_CHECK_MENTION_USER_ID: ${{ secrets.NEW_CHECK_MENTION_USER_ID }}
           REMINDER_MENTION_GROUP_ID: ${{ secrets.REMINDER_MENTION_GROUP_ID }}
         run: python reminder_bot.py
