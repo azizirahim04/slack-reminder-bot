@@ -29,4 +29,8 @@ jobs:
           NEW_EYES_MENTION_USER_ID: ${{ secrets.NEW_EYES_MENTION_USER_ID }}
           NEW_CHECK_MENTION_USER_ID: ${{ secrets.NEW_CHECK_MENTION_USER_ID }}
           REMINDER_MENTION_GROUP_ID: ${{ secrets.REMINDER_MENTION_GROUP_ID }}
+          # Override window buat testing (kosongkan/hapus secretnya untuk pakai default lagi)
+          NEW_EYES_WINDOW_DAYS: ${{ secrets.NEW_EYES_WINDOW_DAYS }}
+          NEW_CHECK_WINDOW_DAYS: ${{ secrets.NEW_CHECK_WINDOW_DAYS }}
+          URGENT_WINDOW_DAYS: ${{ secrets.URGENT_WINDOW_DAYS }}
         run: python reminder_bot.py
