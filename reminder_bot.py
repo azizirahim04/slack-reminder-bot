@@ -76,7 +76,7 @@ NEW_EYES_TEXT = os.environ.get(
 )
 
 # --- Aturan 2: #new + ✅ -> Helmi ---
-NEW_CHECK_WINDOW_DAYS = int(os.environ.get("NEW_CHECK_WINDOW_DAYS", "7"))
+NEW_CHECK_WINDOW_DAYS = int(os.environ.get("NEW_CHECK_WINDOW_DAYS", "0"))
 NEW_CHECK_REPEAT_DAYS = int(os.environ.get("NEW_CHECK_REPEAT_DAYS", str(NEW_CHECK_WINDOW_DAYS)))
 NEW_CHECK_MENTION_USER_ID = os.environ.get("NEW_CHECK_MENTION_USER_ID", "")
 NEW_CHECK_TEXT = os.environ.get(
@@ -86,7 +86,7 @@ NEW_CHECK_TEXT = os.environ.get(
 
 # --- Aturan 3: #urgent + 👍 -> tim (user group) ---
 URGENT_TAG = os.environ.get("URGENT_TAG", "#urgent")
-URGENT_WINDOW_DAYS = int(os.environ.get("URGENT_WINDOW_DAYS", "1"))
+URGENT_WINDOW_DAYS = int(os.environ.get("URGENT_WINDOW_DAYS", "0"))
 URGENT_REPEAT_DAYS = int(os.environ.get("URGENT_REPEAT_DAYS", str(URGENT_WINDOW_DAYS)))
 URGENT_MENTION_GROUP_ID = os.environ.get("REMINDER_MENTION_GROUP_ID", "")
 URGENT_TEXT = os.environ.get(
