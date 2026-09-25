@@ -153,10 +153,13 @@ def fetch_all_top_level_messages(client, channel_id, max_lookback_days):
 
     all_messages = []
     cursor = None
+    page_num = 0
     while True:
         resp = client.conversations_history(
             channel=channel_id, oldest=str(oldest), cursor=cursor, limit=200
         )
+        page_num += 1
+        print(f"  DEBUG conversations_history page {page_num}: ok={resp.get('ok')}, warning={resp.get('warning')}, jumlah_pesan_di_page_ini={len(resp.get('messages', []))}, has_more={resp.get('has_more')}")
         for msg in resp.get("messages", []):
             if msg.get("subtype") is not None:
                 continue
@@ -299,6 +302,7 @@ def print_channel_diagnostic(client, channel_id):
 def check_channel(client: WebClient, channel_id: str):
     print_channel_diagnostic(client, channel_id)
 
+    print(f"DEBUG: MAX_LOOKBACK_DAYS yang kepakai = {MAX_LOOKBACK_DAYS}")
     print(f"Mengambil daftar pesan channel (sekali saja, dipakai untuk semua aturan)...")
     top_messages = fetch_all_top_level_messages(client, channel_id, MAX_LOOKBACK_DAYS)
     thread_ts_list = [m["ts"] for m in top_messages if m.get("reply_count", 0) > 0]
