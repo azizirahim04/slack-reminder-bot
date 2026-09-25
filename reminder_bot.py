@@ -12,20 +12,12 @@ Tiap aturan trigger pertama setelah *_WINDOW_DAYS, lalu berulang tiap
 *_REPEAT_DAYS selama masih belum di-react.
 
 OPTIMASI: channel history dan isi tiap thread hanya di-fetch SATU KALI
-per run (di-cache), lalu dipakai bersama oleh ketiga aturan -- bukan
-fetch ulang 3x seperti versi sebelumnya. Ini jauh lebih cepat untuk
-channel yang punya banyak thread.
+per run (di-cache), lalu dipakai bersama oleh ketiga aturan.
 
-ANTI-DUPLIKAT & PENGULANGAN: setiap reminder disisipi marker tersembunyi
-di akhir teks. Sebelum kirim, bot cek kapan reminder dengan marker itu
-TERAKHIR kali dikirim (dari cache pesan thread yang sama, tanpa fetch
-tambahan) -- kalau belum pernah, kirim sekarang; kalau sudah pernah,
-kirim lagi HANYA setelah lewat *_REPEAT_DAYS sejak reminder terakhir.
-
-CATATAN soal hashtag: kalau ada channel Slack bernama persis "new" atau
-"urgent", Slack bisa otomatis mengubah teks "#new"/"#urgent" jadi link
-channel (bukan teks hashtag biasa) -- kalau reminder tidak terpicu
-padahal sudah ada hashtag, ini kemungkinan penyebabnya.
+DIAGNOSTIC: di awal tiap channel, script mencoba conversations_info
+untuk menampilkan NAMA channel yang benar-benar dibaca (butuh scope
+channels:read / groups:read). Ini membantu memastikan SLACK_CHANNEL_IDS
+menunjuk ke channel yang benar.
 
 Environment variables:
 - SLACK_BOT_TOKEN, SLACK_CHANNEL_IDS, MAX_LOOKBACK_DAYS (default 30)
@@ -49,9 +41,6 @@ SECONDS_PER_DAY = 86400
 
 
 def get_int_env(name, default):
-    """Ambil env var sebagai integer. String kosong (secret yang tidak
-    diisi tapi tetap terdaftar di remind.yml) dianggap sama seperti tidak
-    diset -> pakai default."""
     val = os.environ.get(name, "").strip()
     if not val:
         return int(default)
@@ -158,12 +147,7 @@ def build_marker(rule_code, target_ts):
     return f"ref:{rule_code}-{target_ts}"
 
 
-# ---------------------------------------------------------------------
-# Fetch SATU KALI per channel, dipakai bersama oleh semua aturan
-# ---------------------------------------------------------------------
-
 def fetch_all_top_level_messages(client, channel_id, max_lookback_days):
-    """Semua pesan top-level (non-subtype) dalam max_lookback_days terakhir."""
     now = time.time()
     oldest = now - max_lookback_days * SECONDS_PER_DAY
 
@@ -184,7 +168,6 @@ def fetch_all_top_level_messages(client, channel_id, max_lookback_days):
 
 
 def fetch_all_thread_messages(client, channel_id, thread_ts):
-    """Semua pesan (termasuk induk) dalam satu thread, dengan paginasi."""
     all_messages = []
     cursor = None
     while True:
@@ -199,9 +182,6 @@ def fetch_all_thread_messages(client, channel_id, thread_ts):
 
 
 class ThreadCache:
-    """Cache isi tiap thread supaya cuma di-fetch sekali per run, dipakai
-    ulang oleh ketiga aturan (baik untuk cari reply maupun cek marker)."""
-
     def __init__(self, client, channel_id):
         self.client = client
         self.channel_id = channel_id
@@ -255,33 +235,31 @@ def run_rule(client, channel_id, rule, top_messages, thread_ts_list, thread_cach
     reminded = 0
     skipped = 0
     now = time.time()
-    latest_allowed = now - rule["window_days"] * SECONDS_PER_DAY  # pesan harus SEBELUM ini (cukup umur)
+    latest_allowed = now - rule["window_days"] * SECONDS_PER_DAY
 
-    # --- 1. Pesan top-level ---
     for msg in top_messages:
         ts_f = float(msg["ts"])
         if ts_f > latest_allowed:
-            continue  # belum cukup umur untuk aturan ini
+            continue
         if not message_has_tag(msg, rule["tag"]):
             continue
         checked += 1
         if has_reaction(msg, rule["emoji_names"]):
             continue
 
-        thread_messages = thread_cache.get(msg["ts"])  # thread milik pesan ini sendiri
+        thread_messages = thread_cache.get(msg["ts"])
         sent = send_reminder(client, channel_id, msg["ts"], msg, rule, thread_messages)
         reminded += 1 if sent else 0
         skipped += 0 if sent else 1
         if sent:
             time.sleep(1.2)
 
-    # --- 2. Reply di dalam thread ---
     for thread_ts in thread_ts_list:
         thread_messages = thread_cache.get(thread_ts)
 
         for reply in thread_messages:
             if reply["ts"] == thread_ts:
-                continue  # lewati pesan induk
+                continue
             if reply.get("subtype") is not None:
                 continue
             ts_f = float(reply["ts"])
@@ -303,7 +281,24 @@ def run_rule(client, channel_id, rule, top_messages, thread_ts_list, thread_cach
     print(f"[{rule['label']}] Selesai. Dicek: {checked}, reminder terkirim: {reminded}, belum waktunya/dilewati: {skipped}")
 
 
+def print_channel_diagnostic(client, channel_id):
+    """Tampilkan NAMA channel yang benar-benar dibaca bot, supaya kelihatan
+    kalau ternyata SLACK_CHANNEL_IDS menunjuk ke channel yang salah."""
+    try:
+        resp = client.conversations_info(channel=channel_id)
+        info = resp.get("channel", {})
+        name = info.get("name", "(tidak diketahui)")
+        is_member = info.get("is_member", "?")
+        is_private = info.get("is_private", "?")
+        num_members = info.get("num_members", "?")
+        print(f"DIAGNOSTIC: channel ID ini bernama '#{name}' | bot jadi member: {is_member} | privat: {is_private} | jumlah member: {num_members}")
+    except SlackApiError as e:
+        print(f"DIAGNOSTIC: gagal ambil info channel ({e.response['error']}). Kemungkinan channel ID salah, atau butuh scope channels:read/groups:read.")
+
+
 def check_channel(client: WebClient, channel_id: str):
+    print_channel_diagnostic(client, channel_id)
+
     print(f"Mengambil daftar pesan channel (sekali saja, dipakai untuk semua aturan)...")
     top_messages = fetch_all_top_level_messages(client, channel_id, MAX_LOOKBACK_DAYS)
     thread_ts_list = [m["ts"] for m in top_messages if m.get("reply_count", 0) > 0]
