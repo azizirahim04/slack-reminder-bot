@@ -300,6 +300,7 @@ def print_channel_diagnostic(client, channel_id):
 
 
 def check_channel(client: WebClient, channel_id: str):
+    print(f"DEBUG: channel_id (4 karakter terakhir) = ...{channel_id[-4:]}")
     print_channel_diagnostic(client, channel_id)
 
     print(f"DEBUG: MAX_LOOKBACK_DAYS yang kepakai = {MAX_LOOKBACK_DAYS}")
