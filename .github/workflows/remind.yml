@@ -2,9 +2,9 @@ name: Slack Reminder Bot
 
 on:
   schedule:
-    # Jalan setiap hari jam 09:00 WIB (02:00 UTC)
-    # Ubah angka jam sesuai kebutuhan. Format cron: menit jam * * *
-    - cron: "0 2 * * *"
+    # Jalan SETIAP JAM (bukan cuma sekali sehari lagi)
+    # Format cron: menit jam * * *  ->  "0 * * * *" = tiap jam pas menit ke-0
+    - cron: "0 * * * *"
   workflow_dispatch: {}   # supaya bisa dijalankan manual dari tab Actions untuk testing
 
 jobs:
