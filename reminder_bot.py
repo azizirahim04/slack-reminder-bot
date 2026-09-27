@@ -56,7 +56,7 @@ NEW_EYES_REPEAT_DAYS = get_int_env("NEW_EYES_REPEAT_DAYS", NEW_EYES_WINDOW_DAYS)
 NEW_EYES_MENTION_USER_ID = os.environ.get("NEW_EYES_MENTION_USER_ID", "")
 NEW_EYES_TEXT = os.environ.get(
     "NEW_EYES_TEXT",
-    "👀 {mention} pesan #new ini sudah {days} hari belum di-react 👀 (belum dilihat). Mohon dicek ya!",
+    "👀 {mention} pesan klaim ini sudah {days} hari belum di-react 👀 (belum dilihat). Mohon dicek ya!",
 )
 
 # --- Aturan 2: #new + ✅ -> Helmi ---
@@ -65,7 +65,7 @@ NEW_CHECK_REPEAT_DAYS = get_int_env("NEW_CHECK_REPEAT_DAYS", NEW_CHECK_WINDOW_DA
 NEW_CHECK_MENTION_USER_ID = os.environ.get("NEW_CHECK_MENTION_USER_ID", "")
 NEW_CHECK_TEXT = os.environ.get(
     "NEW_CHECK_TEXT",
-    "✅ {mention} pesan #new ini sudah {days} hari belum di-react ✅ (belum di-checklist/selesai). Mohon ditindaklanjuti ya!",
+    "✅ {mention} pesan klaim ini sudah {days} hari belum di-react ✅ (belum di-checklist/selesai). Mohon ditindaklanjuti ya!",
 )
 
 # --- Aturan 3: #urgent + 👍 -> tim (user group) ---
@@ -75,7 +75,7 @@ URGENT_REPEAT_DAYS = get_int_env("URGENT_REPEAT_DAYS", URGENT_WINDOW_DAYS)
 URGENT_MENTION_GROUP_ID = os.environ.get("REMINDER_MENTION_GROUP_ID", "")
 URGENT_TEXT = os.environ.get(
     "URGENT_TEXT",
-    "👍 {mention} pesan #urgent ini sudah {days} hari belum di-react 👍. Mohon segera direspon!",
+    "👍 {mention} pesan urgent ini sudah {days} hari belum di-react 👍. Mohon segera direspon!",
 )
 
 THUMBSUP_NAMES = {"+1", "thumbsup"}
@@ -147,6 +147,15 @@ def build_marker(rule_code, target_ts):
     return f"ref:{rule_code}-{target_ts}"
 
 
+def is_bot_message(msg):
+    """True kalau pesan ini dikirim oleh bot APAPUN (termasuk bot ini
+    sendiri), dideteksi dari field bot_id -- bukan dari isi teksnya.
+    Ini WAJIB supaya bot tidak menganggap reminder-nya sendiri (yang
+    kebetulan mengandung tulisan #new/#urgent di template teksnya)
+    sebagai pesan baru yang perlu di-reminder lagi (mencegah infinite loop)."""
+    return msg.get("bot_id") is not None
+
+
 def fetch_all_top_level_messages(client, channel_id, max_lookback_days):
     now = time.time()
     oldest = now - max_lookback_days * SECONDS_PER_DAY
@@ -162,6 +171,8 @@ def fetch_all_top_level_messages(client, channel_id, max_lookback_days):
         print(f"  DEBUG conversations_history page {page_num}: ok={resp.get('ok')}, warning={resp.get('warning')}, jumlah_pesan_di_page_ini={len(resp.get('messages', []))}, has_more={resp.get('has_more')}")
         for msg in resp.get("messages", []):
             if msg.get("subtype") is not None:
+                continue
+            if is_bot_message(msg):
                 continue
             all_messages.append(msg)
         cursor = resp.get("response_metadata", {}).get("next_cursor")
@@ -264,6 +275,8 @@ def run_rule(client, channel_id, rule, top_messages, thread_ts_list, thread_cach
             if reply["ts"] == thread_ts:
                 continue
             if reply.get("subtype") is not None:
+                continue
+            if is_bot_message(reply):
                 continue
             ts_f = float(reply["ts"])
             if ts_f > latest_allowed:
