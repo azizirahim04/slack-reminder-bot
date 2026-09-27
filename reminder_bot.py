@@ -261,6 +261,10 @@ def run_rule(client, channel_id, rule, top_messages, thread_ts_list, thread_cach
         if has_reaction(msg, rule["emoji_names"]):
             continue
 
+        existing_reactions = [r["name"] for r in msg.get("reactions", [])]
+        if existing_reactions:
+            print(f"  DEBUG ts={msg['ts']}: expect emoji {rule['emoji_names']}, tapi reaction yang ADA di pesan ini = {existing_reactions}")
+
         thread_messages = thread_cache.get(msg["ts"])
         sent = send_reminder(client, channel_id, msg["ts"], msg, rule, thread_messages)
         reminded += 1 if sent else 0
@@ -287,6 +291,10 @@ def run_rule(client, channel_id, rule, top_messages, thread_ts_list, thread_cach
             checked += 1
             if has_reaction(reply, rule["emoji_names"]):
                 continue
+
+            existing_reactions = [r["name"] for r in reply.get("reactions", [])]
+            if existing_reactions:
+                print(f"  DEBUG ts={reply['ts']}: expect emoji {rule['emoji_names']}, tapi reaction yang ADA di pesan ini = {existing_reactions}")
 
             sent = send_reminder(client, channel_id, thread_ts, reply, rule, thread_messages)
             reminded += 1 if sent else 0
