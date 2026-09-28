@@ -261,9 +261,9 @@ def run_rule(client, channel_id, rule, top_messages, thread_ts_list, thread_cach
         if has_reaction(msg, rule["emoji_names"]):
             continue
 
-        existing_reactions = [r["name"] for r in msg.get("reactions", [])]
-        if existing_reactions:
-            print(f"  DEBUG ts={msg['ts']}: expect emoji {rule['emoji_names']}, tapi reaction yang ADA di pesan ini = {existing_reactions}")
+        raw_reactions = msg.get("reactions", [])
+        text_snippet = msg.get("text", "")[:40].replace("\n", " ")
+        print(f"  DEBUG ts={msg['ts']}: text_awal='{text_snippet}...' | raw_reactions_field={raw_reactions}")
 
         thread_messages = thread_cache.get(msg["ts"])
         sent = send_reminder(client, channel_id, msg["ts"], msg, rule, thread_messages)
@@ -326,7 +326,25 @@ def check_channel(client: WebClient, channel_id: str):
 
     print(f"DEBUG: MAX_LOOKBACK_DAYS yang kepakai = {MAX_LOOKBACK_DAYS}")
     print(f"Mengambil daftar pesan channel (sekali saja, dipakai untuk semua aturan)...")
-    top_messages = fetch_all_top_level_messages(client, channel_id, MAX_LOOKBACK_DAYS)
+
+    # RETRY OTOMATIS: kalau hasil pertama 0 pesan (indikasi gangguan/rate-limit
+    # sesaat dari Slack, bukan channel yang beneran kosong), coba lagi
+    # beberapa kali dengan jeda sebelum benar-benar menyerah.
+    max_attempts = 4
+    top_messages = []
+    for attempt in range(1, max_attempts + 1):
+        top_messages = fetch_all_top_level_messages(client, channel_id, MAX_LOOKBACK_DAYS)
+        if top_messages:
+            if attempt > 1:
+                print(f"  -> Berhasil di percobaan ke-{attempt} (percobaan sebelumnya dapat 0 pesan, kemungkinan gangguan sesaat).")
+            break
+        if attempt < max_attempts:
+            wait_seconds = 5 * attempt
+            print(f"  !! Percobaan ke-{attempt} dapat 0 pesan (mencurigakan untuk channel yang biasanya aktif). Tunggu {wait_seconds} detik lalu coba lagi...")
+            time.sleep(wait_seconds)
+        else:
+            print(f"  !! Setelah {max_attempts}x percobaan tetap 0 pesan. Kemungkinan channel benar-benar kosong, atau gangguan Slack berkepanjangan.")
+
     thread_ts_list = [m["ts"] for m in top_messages if m.get("reply_count", 0) > 0]
     thread_cache = ThreadCache(client, channel_id)
 
