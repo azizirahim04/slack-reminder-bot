@@ -137,6 +137,26 @@ def has_reaction(msg, emoji_names):
     return bool(names_present & emoji_names)
 
 
+def verify_no_reaction_via_api(client, channel_id, ts, emoji_names):
+    """Verifikasi ULANG langsung ke API reactions.get, dipakai sebagai
+    fallback kalau field 'reactions' bawaan dari conversations.history/
+    conversations.replies kosong. Ini jaga-jaga terhadap kasus di mana
+    field reactions tidak ikut kebawa di response utama walau reaction
+    sebenarnya ADA.
+
+    Return True  = terkonfirmasi BENAR-BENAR belum ada reaction yang cocok (aman kirim reminder)
+    Return False = ternyata SUDAH ada reaction yang cocok (jangan kirim reminder)
+    """
+    try:
+        resp = client.reactions_get(channel=channel_id, timestamp=ts)
+        item = resp.get("message") or resp.get("file") or {}
+        already_reacted = has_reaction(item, emoji_names)
+        return not already_reacted
+    except SlackApiError as e:
+        print(f"    !! reactions_get gagal untuk ts={ts}: {e.response['error']}. Anggap belum di-react (tetap lanjut proses reminder).")
+        return True
+
+
 def message_has_tag(msg, tag):
     if not tag:
         return True
@@ -265,6 +285,12 @@ def run_rule(client, channel_id, rule, top_messages, thread_ts_list, thread_cach
         text_snippet = msg.get("text", "")[:40].replace("\n", " ")
         print(f"  DEBUG ts={msg['ts']}: text_awal='{text_snippet}...' | raw_reactions_field={raw_reactions}")
 
+        # Verifikasi ulang langsung ke API sebelum benar-benar kirim reminder,
+        # jaga-jaga field 'reactions' di atas kosong padahal sebenarnya sudah di-react.
+        if not verify_no_reaction_via_api(client, channel_id, msg["ts"], rule["emoji_names"]):
+            print(f"  -> Lewati ts={msg['ts']}: reactions.get konfirmasi SUDAH ada react (field reactions di history-nya kosong/tidak sinkron).")
+            continue
+
         thread_messages = thread_cache.get(msg["ts"])
         sent = send_reminder(client, channel_id, msg["ts"], msg, rule, thread_messages)
         reminded += 1 if sent else 0
@@ -295,6 +321,10 @@ def run_rule(client, channel_id, rule, top_messages, thread_ts_list, thread_cach
             existing_reactions = [r["name"] for r in reply.get("reactions", [])]
             if existing_reactions:
                 print(f"  DEBUG ts={reply['ts']}: expect emoji {rule['emoji_names']}, tapi reaction yang ADA di pesan ini = {existing_reactions}")
+
+            if not verify_no_reaction_via_api(client, channel_id, reply["ts"], rule["emoji_names"]):
+                print(f"  -> Lewati ts={reply['ts']}: reactions.get konfirmasi SUDAH ada react (field reactions kosong/tidak sinkron).")
+                continue
 
             sent = send_reminder(client, channel_id, thread_ts, reply, rule, thread_messages)
             reminded += 1 if sent else 0
